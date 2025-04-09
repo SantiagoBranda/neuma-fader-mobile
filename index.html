@@ -55,9 +55,9 @@
       cursor: pointer;
     }
     /* Media Query for Mobile (landscape horizontal display) */
-    @media (max-width: 640px) {
+    @media (max-width: 480px) {
       #video-container {
-        width: 340px;
+        width: 360px;
       }
     }
   </style>
@@ -83,37 +83,40 @@
     const sfxAudio = document.getElementById("sfx-audio");
     const audioFader = document.getElementById("audio-fader");
     
-    // Flag to indicate whether the user is interacting with the fader
+    // Flag to indicate whether the user is interacting with the fader.
     let isDragging = false;
     
-    // Listen for pointer events on the fader
+    // For throttling volume updates.
+    let lastVolumeUpdateTime = 0;
+    const throttleDelay = 50; // milliseconds
+    
+    // Use pointer events (or touch events) to flag dragging.
     audioFader.addEventListener("pointerdown", () => { 
       isDragging = true; 
     });
     audioFader.addEventListener("pointerup", () => { 
       isDragging = false; 
     });
-    // Also consider pointercancel in case the interaction is interrupted
     audioFader.addEventListener("pointercancel", () => { 
       isDragging = false; 
     });
-
-    // Full synchronization when seeking
+    
+    // Full synchronization when seeking.
     function fullSync() {
       musicAudio.currentTime = video.currentTime;
       sfxAudio.currentTime = video.currentTime;
     }
-
+    
     video.addEventListener("play", () => {
       musicAudio.play();
       sfxAudio.play();
     });
-
+    
     video.addEventListener("pause", () => {
       musicAudio.pause();
       sfxAudio.pause();
     });
-
+    
     video.addEventListener("seeked", fullSync);
     
     video.addEventListener("ended", () => {
@@ -122,13 +125,12 @@
       sfxAudio.pause();
       sfxAudio.currentTime = 0;
     });
-
-    // Tolerance-based synchronization during timeupdate,
-    // but only if the user isn't interacting with the fader.
+    
+    // Synchronize the audio times during video timeupdate, but only if the user is not dragging.
     video.addEventListener("timeupdate", () => {
-      if (isDragging) return;  // Skip synchronization while dragging
+      if (isDragging) return;  // Skip sync while the fader is being moved.
       
-      const tolerance = 0.15; // Only update if the drift is greater than 0.15 seconds
+      const tolerance = 0.25; // Increased tolerance to 0.25 seconds.
       if (Math.abs(musicAudio.currentTime - video.currentTime) > tolerance) {
         musicAudio.currentTime = video.currentTime;
       }
@@ -136,11 +138,13 @@
         sfxAudio.currentTime = video.currentTime;
       }
     });
-
-    // Updated Audio Fader Logic:
-    // - When fader <= 0.5: Music remains at 0.5; SFX volume scales from 0 (at 0) to 0.5 (at 0.5)
-    // - When fader > 0.5: SFX remains at 0.5; Music volume scales from 0.5 (at 0.5) to 0 (at 1)
+    
+    // Throttle the audio fader input so rapid changes don't cause too many updates.
     audioFader.addEventListener("input", () => {
+      const now = Date.now();
+      if (now - lastVolumeUpdateTime < throttleDelay) return;
+      lastVolumeUpdateTime = now;
+      
       let faderValue = parseFloat(audioFader.value);
       if (faderValue <= 0.5) {
         musicAudio.volume = 0.5;

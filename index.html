@@ -82,6 +82,21 @@
     const musicAudio = document.getElementById("music-audio");
     const sfxAudio = document.getElementById("sfx-audio");
     const audioFader = document.getElementById("audio-fader");
+    
+    // Flag to indicate whether the user is interacting with the fader
+    let isDragging = false;
+    
+    // Listen for pointer events on the fader
+    audioFader.addEventListener("pointerdown", () => { 
+      isDragging = true; 
+    });
+    audioFader.addEventListener("pointerup", () => { 
+      isDragging = false; 
+    });
+    // Also consider pointercancel in case the interaction is interrupted
+    audioFader.addEventListener("pointercancel", () => { 
+      isDragging = false; 
+    });
 
     // Full synchronization when seeking
     function fullSync() {
@@ -108,8 +123,11 @@
       sfxAudio.currentTime = 0;
     });
 
-    // Tolerance-based synchronization during timeupdate
+    // Tolerance-based synchronization during timeupdate,
+    // but only if the user isn't interacting with the fader.
     video.addEventListener("timeupdate", () => {
+      if (isDragging) return;  // Skip synchronization while dragging
+      
       const tolerance = 0.15; // Only update if the drift is greater than 0.15 seconds
       if (Math.abs(musicAudio.currentTime - video.currentTime) > tolerance) {
         musicAudio.currentTime = video.currentTime;
@@ -136,4 +154,3 @@
 
 </body>
 </html>
-
